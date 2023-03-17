@@ -1,0 +1,4 @@
+.venv
+*.pt
+labels.txt
+.vscode
