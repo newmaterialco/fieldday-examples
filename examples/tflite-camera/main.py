@@ -53,7 +53,6 @@ def setup_preprocessing(cap):
         center_cropped = frame[int(y): int(y + size), int(x): int(x + size)]
         resized = cv2.resize(center_cropped, (224, 224))
         normalized = normalize(np.divide(resized, 255))
-        # cv2.imshow("Normalized", np.array(normalized))
         transposed = np.transpose(normalized, (2, 0, 1))
         input = transposed[np.newaxis, :]
         return input
