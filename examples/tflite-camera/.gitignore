@@ -1,0 +1,4 @@
+.venv
+*.tflite
+labels.txt
+.vscode

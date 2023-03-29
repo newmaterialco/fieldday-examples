@@ -24,7 +24,7 @@ This example shows how you can export a PyTorch model and its categories and run
 
    ![Step 1](./docs/share.png)
 
-   After exportint you should have a model file with a `.pt` extention as well as a file called `labels.txt`.
+   After exporting you should have a model file with a `.pt` extention as well as a file called `labels.txt`.
    Put both of those files in this folder (i.e. next to `main.py`).
 
 4. Now you have everything you need to run the script.
