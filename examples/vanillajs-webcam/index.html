@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FieldDay Webcam Example</title>
+  <style>
+    #webcam {
+      transform: scaleX(-1); /* Flip horizontally */
+    }
+  </style>
+</head>
+<body>
+  <h1>FieldDay Webcam Example</h1>
+  <video id="webcam" autoplay playsinline></video>
+  <div id="output"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script>
+
+  <script>
+
+    // NOTE: if you've trained on the selfie camera, frames should be flipped to match training data
+    const flipped = true
+
+    // TODO: You need to uncomment this line of code and replace with the classes
+    // of your model!
+    // const classes = ['Foo', 'Bar', 'Baz']
+
+    // TODO: You need to uncomment this line of code and replace with your model file
+    // const modelURL = 'https://link/to/model.json'
+
+    function imgTransform(img) {
+
+      img = tf.image.resizeBilinear(img, [224, 224]).div(tf.scalar(255))
+      img = tf.cast(img, 'float32')
+
+      if (flipped) {
+        // Flip the image horizontally
+        img = img.expandDims(0);
+        img = tf.image.flipLeftRight(img);
+        img = img.squeeze()
+      }
+
+      // mean of natural image
+      let meanRgb = { red: 0.485, green: 0.456, blue: 0.406 }
+
+      // standard deviation of natural image
+      let stdRgb = { red: 0.229, green: 0.224, blue: 0.225 }
+
+      let indices = [
+        tf.tensor1d([0], 'int32'),
+        tf.tensor1d([1], 'int32'),
+        tf.tensor1d([2], 'int32'),
+      ]
+
+      // sperating tensor channelwise and applyin normalization to each chanel seperately
+      let centeredRgb = {
+        red: tf
+          .gather(img, indices[0], 2)
+          .sub(tf.scalar(meanRgb.red))
+          .div(tf.scalar(stdRgb.red))
+          .reshape([224, 224]),
+
+        green: tf
+          .gather(img, indices[1], 2)
+          .sub(tf.scalar(meanRgb.green))
+          .div(tf.scalar(stdRgb.green))
+          .reshape([224, 224]),
+
+        blue: tf
+          .gather(img, indices[2], 2)
+          .sub(tf.scalar(meanRgb.blue))
+          .div(tf.scalar(stdRgb.blue))
+          .reshape([224, 224]),
+      }
+
+      // combining seperate normalized channels
+      let processedImg = tf
+        .stack([centeredRgb.red, centeredRgb.green, centeredRgb.blue])
+        .expandDims()
+
+      return processedImg
+    }
+
+    async function runClassifier() {
+      // Load the pre-trained classifier model
+      const model = await tf.loadGraphModel(modelURL)
+
+      // Start the webcam
+      const video = document.getElementById('webcam')
+      if (navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          // NOTE: this is equivalent to training data dimensions of FieldDay models.
+          // If you change this without preserving the aspect ratio
+          // it might affect model accuracy.
+          video: { width: 293, height: 520 }
+        });
+        video.srcObject = stream;
+      }
+
+      // Run the classifier on the webcam frame
+      async function classifyFrame() {
+        // Check if the video element has valid dimensions
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          requestAnimationFrame(classifyFrame)
+          return
+        }
+
+        const predictions = await tf.tidy(() => {
+          // Preprocess the video frame
+          const frame = tf.browser.fromPixels(video)
+          const allTransforms = imgTransform(frame)
+          return model.predict(allTransforms)
+        })
+
+        // Get the predicted class probabilities
+        const probabilities = await predictions.data()
+
+        // Get the predicted class label
+        const predictedClassIndex = probabilities.indexOf(Math.max(...probabilities))
+        const predictedClass = classes[predictedClassIndex]
+
+        // Display the predicted class label
+        const outputElement = document.getElementById('output')
+        outputElement.innerText = `Predicted Class: ${predictedClass}`
+
+        // Dispose of tensors
+        tf.dispose(predictions)
+
+        // Call classifyFrame() again on the next video frame
+        requestAnimationFrame(classifyFrame)
+      }
+
+      // Start classification
+      classifyFrame()
+    }
+
+    // Run the classifier when the page finishes loading
+    window.onload = runClassifier
+  </script>
+</body>
+</html>
+
